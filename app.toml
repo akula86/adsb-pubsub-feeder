@@ -1,0 +1,47 @@
+# Template config. Copy this to pi.app.toml (or mac.app.toml) and fill in your
+# values, then run: uv run ads-b --app-toml pi.app.toml
+# The credential path is NOT set here -- it comes from ~/.env (see README).
+
+[feed]
+# The fr24feed BaseStation (SBS) TCP endpoint to read from.
+host = "CHANGE_ME_FEED_HOST"       # e.g. "192.168.1.50" or "127.0.0.1"
+port = 30003
+
+[pubsub]
+# Your Google Cloud project and destination Pub/Sub topic.
+project_id = "CHANGE_ME_GCP_PROJECT_ID"
+topic_id = "CHANGE_ME_TOPIC_ID"
+
+[reconnect]
+# Exponential backoff bounds when the feed drops.
+initial_backoff_seconds = 1.0
+max_backoff_seconds = 30.0
+
+[watchdog]
+# Force a reconnect if no feed bytes arrive within this window.
+feed_idle_timeout_seconds = 60.0
+
+[keepalive]
+# TCP keepalive for OS-level dead-peer detection.
+idle_seconds = 1
+interval_seconds = 3
+max_fails = 5
+
+[health]
+# Where to write the JSON health file, and how often.
+health_file_path = "CHANGE_ME_HEALTH_FILE_PATH"   # e.g. "/opt/adsb/health.json"
+write_interval_seconds = 300.0
+health_tick_seconds = 1.0
+
+[logging]
+# Rotating log file location and size/retention caps.
+log_file_path = "CHANGE_ME_LOG_FILE_PATH"         # e.g. "/opt/adsb/adsb.log"
+max_megabytes = 5
+backup_count = 3
+# Log-flood control: full-detail error lines before throttling, then a summary.
+error_sample_count = 5
+error_summary_interval_seconds = 60.0
+
+[publish]
+# Backlog cap: drop the oldest publish when this many are outstanding.
+max_pending = 1000

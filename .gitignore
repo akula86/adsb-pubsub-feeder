@@ -1,0 +1,19 @@
+# Python-generated files
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+
+# Virtual environments
+.venv
+
+# IDE settings
+.idea/
+
+# Real deployment configs (copy app.toml and fill in your values).
+# app.toml is the tracked template; these hold real host/project/paths.
+pi.app.toml
+mac.app.toml
+

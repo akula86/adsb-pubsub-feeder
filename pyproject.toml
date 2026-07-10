@@ -1,0 +1,25 @@
+[project]
+name = "ads-b"
+version = "0.1.0"
+description = "Forward fr24feed BaseStation (SBS) data to Google Cloud Pub/Sub in microbatches"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "google-cloud-pubsub>=2.21.0",
+]
+
+[project.scripts]
+ads-b = "ads_b.main:main"
+
+[build-system]
+requires = ["uv_build>=0.11.24,<0.12.0"]
+build-backend = "uv_build"
+
+[dependency-groups]
+dev = [
+    "pytest>=8.0.0",
+]
+
+[[tool.mypy.overrides]]
+module = ["google.cloud.*"]
+ignore_missing_imports = true
