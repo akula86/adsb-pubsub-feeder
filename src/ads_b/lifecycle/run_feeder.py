@@ -11,6 +11,7 @@ from ads_b.config.config_model import Config
 from ads_b.network.connect_with_backoff import connect_with_backoff
 from ads_b.publish.drain_futures import drain_futures
 from ads_b.network.feed_idle_error import FeedIdleError
+from ads_b.health.build_health_history_record import build_health_history_record
 from ads_b.health.feeder_stats import FeederStats
 from ads_b.publish.publish_line import publish_line
 from ads_b.publish.publish_line_like import PublishLineLike
@@ -18,6 +19,7 @@ from ads_b.publish.publisher_like import PublisherLike
 from ads_b.network.read_sbs_lines import read_sbs_lines
 from ads_b.publish.reconcile_futures import reconcile_futures
 from ads_b.health.safe_write_health_file import safe_write_health_file
+from ads_b.health.write_health_history_record import write_health_history_record
 from ads_b.observability.throttled_logger import ThrottledLogger
 
 logger = logging.getLogger(__name__)
@@ -36,6 +38,8 @@ def run_feeder(
     should_continue: Callable[[], bool] = lambda: True,
     monotonic: Callable[[], float] = time.monotonic,
     now: Callable[[], datetime] = partial(datetime.now, timezone.utc),
+    history_logger: logging.Logger = logging.getLogger('health_history'),
+    write_history: Callable[..., None] = write_health_history_record,
     drain_timeout_seconds: float = DRAIN_TIMEOUT_SECONDS,
 ) -> None:
     """Read the SBS feed and publish one message per line until stopped.
@@ -59,6 +63,8 @@ def run_feeder(
         should_continue: Returns False to request graceful shutdown.
         monotonic: Injectable monotonic clock (defaults to time.monotonic).
         now: Injectable wall clock returning aware UTC datetimes.
+        history_logger: Injectable JSONL health-history logger.
+        write_history: Injectable history-record writer (defaults to write_health_history_record).
         drain_timeout_seconds: Max time to wait for publishes on shutdown.
     """
     # Outstanding publish futures, and the stats snapshotted into the health file.
@@ -154,10 +160,22 @@ def run_feeder(
 
                 # Periodic health write, gated behind the write interval.
                 if monotonic() - last_health_write >= config.write_interval_seconds:
+                    # One timestamp shared by the record and the health write so
+                    # their times match; capture the delta before the health
+                    # write resets lines_since_write, then emit the record.
+                    write_now: datetime = now()
+                    delta: int = stats.lines_since_write
+                    write_history(
+                        build_health_history_record(
+                            stats, write_now, len(pending), delta
+                        ),
+                        history_logger,
+                        throttle,
+                    )
                     safe_write_health_file(
                         config.health_file_path,
                         stats,
-                        now(),
+                        write_now,
                         config.write_interval_seconds,
                         len(pending),
                         throttle,
@@ -193,10 +211,21 @@ def run_feeder(
             'publish_failed',
             f'{drained.failed} publish(es) failed during drain: {drained.last_error}',
         )
+    # Emit a final history record (delta captured before the health write reset),
+    # then write the final health file.
+    shutdown_now: datetime = now()
+    shutdown_delta: int = stats.lines_since_write
+    write_history(
+        build_health_history_record(
+            stats, shutdown_now, len(drained.still_pending), shutdown_delta
+        ),
+        history_logger,
+        throttle,
+    )
     safe_write_health_file(
         config.health_file_path,
         stats,
-        now(),
+        shutdown_now,
         config.write_interval_seconds,
         len(drained.still_pending),
         throttle,

@@ -265,6 +265,45 @@ def test_health_file_written_on_interval(tmp_path: Path) -> None:
     assert data['messages_total'] == 1
 
 
+def test_writes_health_history_record_on_periodic_write(tmp_path: Path) -> None:
+    """The periodic health write also emits a history record with the delta."""
+    publisher = RecordingPublisher()
+    continues = iter([True, True, False])
+    cfg = Config(**{**_config().__dict__, 'health_file_path': str(tmp_path / 'h.json')})
+    records: list[dict] = []
+
+    def fake_connect(*_args: object, **_kwargs: object) -> _Closeable:
+        return _Closeable()
+
+    def fake_read(_sock: object, _idle: float, _monotonic: object):
+        yield 'ONLY'
+
+    def fake_write_history(record, _logger, _throttle) -> None:
+        records.append(record)
+
+    monotonic = _advancing_monotonic(first=0.0, rest=500.0)
+
+    run_feeder(
+        cfg,
+        publisher,
+        'projects/p/topics/t',
+        connect=fake_connect,
+        read_lines=fake_read,
+        publish=publish_line,
+        should_continue=lambda: next(continues),
+        monotonic=monotonic,
+        now=_fixed_now,
+        write_history=fake_write_history,
+        drain_timeout_seconds=0.05,
+    )
+
+    # At least one history record was emitted, and the periodic one captured the
+    # single line published in that interval (delta == 1), read before reset.
+    assert records
+    assert records[0]['lines_this_interval'] == 1
+    assert records[0]['ts'] == _fixed_now().isoformat()
+
+
 def test_idle_tick_publishes_nothing(tmp_path: Path) -> None:
     """A None idle tick from the reader does not publish a message."""
     publisher = RecordingPublisher()
