@@ -1,0 +1,103 @@
+# Semantic catalog: the rotating health-history log this feeder writes.
+#
+# One JSON object per line (JSONL), appended every write_interval_seconds to
+# health_log_file_path, size-rotated like the main log. The file is PURE JSONL:
+# no log-level or timestamp prefix, so a reader does json.loads(line) directly.
+#
+# Design: docs/superpowers/specs/2026-07-15-health-history-logging-design.md
+# Producer: src/ads_b/health/write_health_history_record.py
+
+format: JSONL (one JSON object per line, UTF-8)
+cadence: One record per write_interval_seconds (default 300 s), plus one on shutdown.
+rotation: >-
+  RotatingFileHandler bounded by health_log_max_megabytes with
+  health_log_backup_count rolled files; oldest beyond the cap is discarded.
+
+# Per-interval line deltas are the restart-safe primitive. lines_total resets to
+# zero at UTC midnight AND on every service restart, so a per-day total must be
+# computed as the SUM of lines_this_interval over the day - never max(lines_total),
+# which would drop a run's lines when the day contains a restart.
+counting_guidance:
+  daily_lines: Sum lines_this_interval over all records with the same ts date (UTC).
+  run_identity: started_at is unique per process; use it to group records by run.
+  daily_uptime: Per run (group by started_at) take max uptime_seconds, then sum across runs in the day.
+
+fields:
+  - name: ts
+    type: str (ISO 8601, UTC)
+    description: When this record was written (the health-write time). Top-level timestamp for the line.
+    example: "2026-07-15T05:00:00.000000+00:00"
+  - name: lines_this_interval
+    type: int
+    description: >-
+      Lines published since the previous record (the per-interval delta,
+      captured before the counter reset). Additive across restarts and midnight;
+      the basis for per-day line totals.
+    example: 45710
+  - name: status
+    type: str
+    description: healthy or stale - stale if no publish within 2x write_interval_seconds.
+  - name: started_at
+    type: str (ISO 8601, UTC)
+    description: Process start time. Fixed for a run; serves as the per-run identifier.
+  - name: last_publish_at
+    type: str (ISO 8601, UTC) or null
+    description: Time of the most recent successful publish, or null if none yet.
+  - name: uptime_seconds
+    type: int
+    description: Seconds since started_at for this run. Resets to 0 on restart.
+  - name: lines_total
+    type: int
+    description: >-
+      Cumulative lines this run since the last UTC-midnight reset. Resets at
+      midnight and on restart - do NOT sum or max across records for daily totals;
+      use lines_this_interval instead.
+  - name: lines_last_interval
+    type: int
+    description: >-
+      The feeder's own record of lines in the last interval, mirrored from
+      FeederStats.lines_since_write at snapshot time. Equivalent to
+      lines_this_interval; retained for parity with the health.json snapshot.
+  - name: messages_total
+    type: int
+    description: Cumulative Pub/Sub messages this run since the last midnight reset (one per line).
+  - name: connects
+    type: int
+    description: Successful feed connections this run since the last midnight reset.
+  - name: disconnects
+    type: int
+    description: Feed disconnects / idle-forced reconnects this run since the last midnight reset.
+  - name: last_reconnect_at
+    type: str (ISO 8601, UTC) or null
+    description: Time of the most recent disconnect/reconnect, or null.
+  - name: publishes_resolved
+    type: int
+    description: Publish futures that completed successfully, since the last midnight reset.
+  - name: publishes_failed
+    type: int
+    description: Publish futures that completed with an exception, since the last midnight reset.
+  - name: publishes_in_flight
+    type: int
+    description: Publish futures submitted but not yet reconciled at snapshot time.
+  - name: publishes_dropped
+    type: int
+    description: >-
+      Publishes dropped oldest-first to bound the backlog under backpressure,
+      since the last midnight reset.
+  - name: last_failure_at
+    type: str (ISO 8601, UTC) or null
+    description: Time of the most recent publish failure, or null.
+  - name: last_failure
+    type: str or null
+    description: str() of the most recent publish failure, or null.
+
+example_record: >-
+  {"ts":"2026-07-15T05:00:00.000000+00:00","lines_this_interval":45710,
+  "status":"healthy","started_at":"2026-07-15T04:53:16.000000+00:00",
+  "last_publish_at":"2026-07-15T04:59:59.900000+00:00","uptime_seconds":404,
+  "lines_total":614230,"lines_last_interval":45710,"messages_total":614230,
+  "connects":1,"disconnects":0,"last_reconnect_at":null,
+  "publishes_resolved":614130,"publishes_failed":0,"publishes_in_flight":100,
+  "publishes_dropped":0,"last_failure_at":null,"last_failure":null}
+
+reader: src/ads_b/reporting/report_health_history.py (per-day rollups, text/CSV/PNG)
