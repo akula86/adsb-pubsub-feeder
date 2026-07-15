@@ -1,10 +1,10 @@
 import logging
 from logging.handlers import RotatingFileHandler
 
+from ads_b.lifecycle.bytes_per_megabyte import BYTES_PER_MEGABYTE
+
 logger = logging.getLogger(__name__)
 
-# Bytes in one megabyte, used to convert the human-readable size cap.
-BYTES_PER_MEGABYTE = 1_024 * 1_024
 # Shared log line format for both the file and the console.
 LOG_FORMAT = '%(asctime)s %(levelname)s %(name)s: %(message)s'
 
