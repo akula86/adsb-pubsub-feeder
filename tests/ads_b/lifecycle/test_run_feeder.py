@@ -27,6 +27,7 @@ def _config() -> Config:
         feed_port=30_003,
         project_id='p',
         topic_id='t',
+        location='SJC',
         initial_backoff_seconds=1.0,
         max_backoff_seconds=30.0,
         feed_idle_timeout_seconds=60.0,
@@ -47,15 +48,17 @@ def _config() -> Config:
 
 
 class RecordingPublisher:
-    """A publisher whose publish() records each message's bytes."""
+    """A publisher whose publish() records each message's bytes and attributes."""
 
     def __init__(self) -> None:
-        """Initialise the recorded-message list."""
+        """Initialise the recorded-message and recorded-attribute lists."""
         self.published: list[bytes] = []
+        self.attrs: list[dict[str, str]] = []
 
-    def publish(self, _topic: str, data: bytes) -> Future:
-        """Record the published bytes and return a completed future."""
+    def publish(self, _topic: str, data: bytes, **attrs: str) -> Future:
+        """Record the published bytes and attributes, return a completed future."""
         self.published.append(data)
+        self.attrs.append(attrs)
         future: Future = Future()
         future.set_result('msg-id')
         return future
@@ -64,7 +67,7 @@ class RecordingPublisher:
 class FailingPublisher:
     """A publisher whose every publish future completes with an exception."""
 
-    def publish(self, _topic: str, _data: bytes) -> Future:
+    def publish(self, _topic: str, _data: bytes, **_attrs: str) -> Future:
         """Return a future already failed with a RuntimeError."""
         future: Future = Future()
         future.set_exception(RuntimeError('delivery boom'))
@@ -99,6 +102,9 @@ def test_publishes_one_message_per_line(tmp_path: Path) -> None:
 
     # Three lines produce three individual messages, in order.
     assert publisher.published == [b'L1', b'L2', b'L3']
+    # Every message carries the configured location as a LOCATION attribute,
+    # proving config.location is threaded through to the publish call.
+    assert publisher.attrs == [{'LOCATION': 'SJC'}] * 3
 
 
 def test_health_file_written_on_shutdown(tmp_path: Path) -> None:
@@ -322,7 +328,7 @@ def test_stops_when_connect_returns_none(tmp_path: Path) -> None:
 class NeverResolvingPublisher:
     """A publisher whose publish() returns futures that never resolve."""
 
-    def publish(self, _topic: str, _data: bytes) -> Future:
+    def publish(self, _topic: str, _data: bytes, **_attrs: str) -> Future:
         """Return a Future with no result set, so it stays pending forever."""
         return Future()
 

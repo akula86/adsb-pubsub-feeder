@@ -11,6 +11,7 @@ port = 30003
 [pubsub]
 project_id = "test-project"
 topic_id = "test-topic"
+location = "SJC"
 
 [reconnect]
 initial_backoff_seconds = 1.0
@@ -63,6 +64,7 @@ def test_load_config_reads_all_fields(tmp_path: Path) -> None:
     assert config.feed_port == 30003
     assert config.project_id == 'test-project'
     assert config.topic_id == 'test-topic'
+    assert config.location == 'SJC'
     assert config.initial_backoff_seconds == 1.0
     assert config.max_backoff_seconds == 30.0
     assert config.feed_idle_timeout_seconds == 60.0

@@ -81,9 +81,9 @@ cp app.toml pi.app.toml
 ```
 
 Edit `pi.app.toml` and replace every `CHANGE_ME_*` placeholder — at least
-`[feed] host`, `[pubsub] project_id` and `topic_id`, and the `[health]` /
-`[logging]` file paths. The credential path is NOT in this file; it comes from
-`~/.env`.
+`[feed] host`, `[pubsub] project_id`, `topic_id`, and `location`, and the
+`[health]` / `[logging]` file paths. The credential path is NOT in this file;
+it comes from `~/.env`.
 
 To protect resources on the Pi, logging rotates the file after it reaches 5 MB
 and keeps only three log files, and repeated errors are batched so a recurring
@@ -100,6 +100,7 @@ port = 30003
 [pubsub]
 project_id = "my-gcp-project"
 topic_id = "adsb-topic"
+location = "SJC"                 # IATA code of nearest airport, sent as a LOCATION attribute
 
 [reconnect]
 initial_backoff_seconds = 1.0
@@ -264,7 +265,7 @@ timestamps are process-lifetime and do not reset.
 | Section       | Key                              | Meaning                                       |
 | ------------- | -------------------------------- | --------------------------------------------- |
 | `[feed]`      | `host`, `port`                   | fr24feed BaseStation TCP endpoint             |
-| `[pubsub]`    | `project_id`, `topic_id`         | Destination Pub/Sub topic                     |
+| `[pubsub]`    | `project_id`, `topic_id`, `location` | Destination Pub/Sub topic; `location` is the IATA code of the nearest airport, sent as a `LOCATION` message attribute |
 | `[reconnect]` | `initial_backoff_seconds`        | First reconnect delay                         |
 | `[reconnect]` | `max_backoff_seconds`            | Reconnect delay ceiling                       |
 | `[watchdog]`  | `feed_idle_timeout_seconds`      | Force reconnect after this silent gap         |

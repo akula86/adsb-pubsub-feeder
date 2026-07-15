@@ -4,6 +4,7 @@ from pathlib import Path
 
 from ads_b.config.config_model import Config
 from ads_b.config.read_credentials_path import read_credentials_path
+from ads_b.config.require_pubsub_location import require_pubsub_location
 
 logger = logging.getLogger(__name__)
 
@@ -20,10 +21,16 @@ def load_config(app_toml_path: Path, env_path: Path) -> Config:
 
     Raises:
         KeyError: If the credential key is missing from the .env file.
+        ValueError: If the [pubsub] location is missing, blank, or still the
+            template placeholder in the app.toml file.
     """
     # Read and parse the non-secret TOML config into nested dicts.
     with app_toml_path.open('rb') as handle:
         raw: dict = tomllib.load(handle)
+
+    # Validate and normalise the location up front so a missing or placeholder
+    # value fails with a clear, file-naming message instead of a bare KeyError.
+    location: str = require_pubsub_location(raw, app_toml_path)
 
     # Read the secret credential path from the separate .env file.
     credentials_path: str = read_credentials_path(env_path)
@@ -34,6 +41,7 @@ def load_config(app_toml_path: Path, env_path: Path) -> Config:
         feed_port=raw['feed']['port'],
         project_id=raw['pubsub']['project_id'],
         topic_id=raw['pubsub']['topic_id'],
+        location=location,
         initial_backoff_seconds=raw['reconnect']['initial_backoff_seconds'],
         max_backoff_seconds=raw['reconnect']['max_backoff_seconds'],
         feed_idle_timeout_seconds=raw['watchdog']['feed_idle_timeout_seconds'],

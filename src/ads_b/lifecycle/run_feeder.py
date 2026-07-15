@@ -13,6 +13,7 @@ from ads_b.publish.drain_futures import drain_futures
 from ads_b.network.feed_idle_error import FeedIdleError
 from ads_b.health.feeder_stats import FeederStats
 from ads_b.publish.publish_line import publish_line
+from ads_b.publish.publish_line_like import PublishLineLike
 from ads_b.publish.publisher_like import PublisherLike
 from ads_b.network.read_sbs_lines import read_sbs_lines
 from ads_b.publish.reconcile_futures import reconcile_futures
@@ -31,7 +32,7 @@ def run_feeder(
     topic_path: str,
     connect: Callable[..., socket.socket | None] = connect_with_backoff,
     read_lines: Callable[..., Iterator[str | None]] = read_sbs_lines,
-    publish: Callable[..., Future] = publish_line,
+    publish: PublishLineLike = publish_line,
     should_continue: Callable[[], bool] = lambda: True,
     monotonic: Callable[[], float] = time.monotonic,
     now: Callable[[], datetime] = partial(datetime.now, timezone.utc),
@@ -48,11 +49,13 @@ def run_feeder(
 
     Args:
         config: Resolved feeder configuration.
-        publisher: Pub/Sub publisher client exposing publish(topic, data).
+        publisher: Pub/Sub publisher client exposing
+            publish(topic, data, **attrs).
         topic_path: Fully-qualified Pub/Sub topic path.
         connect: Injectable connector (defaults to connect_with_backoff).
         read_lines: Injectable line reader (defaults to read_sbs_lines).
-        publish: Injectable single-line publisher (defaults to publish_line).
+        publish: Injectable single-line publisher (defaults to publish_line);
+            called as publish(publisher, topic_path, line, location).
         should_continue: Returns False to request graceful shutdown.
         monotonic: Injectable monotonic clock (defaults to time.monotonic).
         now: Injectable wall clock returning aware UTC datetimes.
@@ -119,7 +122,9 @@ def run_feeder(
                         oldest: Future = pending.pop(0)
                         oldest.cancel()  # best-effort; an already-sent won't cancel
                         stats.record_dropped(1)
-                    pending.append(publish(publisher, topic_path, line_or_tick))
+                    pending.append(
+                        publish(publisher, topic_path, line_or_tick, config.location)
+                    )
                     stats.record_publish(now())
 
                 # Reconcile completed futures without blocking; fold outcomes in.

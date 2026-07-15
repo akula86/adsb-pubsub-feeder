@@ -11,6 +11,7 @@ def _config(credentials_path: str) -> Config:
         feed_port=30003,
         project_id='proj',
         topic_id='topic',
+        location='SJC',
         initial_backoff_seconds=1.0,
         max_backoff_seconds=30.0,
         feed_idle_timeout_seconds=60.0,

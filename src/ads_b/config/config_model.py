@@ -11,6 +11,9 @@ class Config:
     # Pub/Sub destination identifiers.
     project_id: str
     topic_id: str
+    # Feeder location: IATA code of the nearest airport (e.g. SJC), published
+    # as a message attribute on every message.
+    location: str
     # Reconnect backoff bounds for a dropped feed.
     initial_backoff_seconds: float
     max_backoff_seconds: float

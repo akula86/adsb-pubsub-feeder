@@ -11,6 +11,9 @@ port = 30003
 # Your Google Cloud project and destination Pub/Sub topic.
 project_id = "CHANGE_ME_GCP_PROJECT_ID"
 topic_id = "CHANGE_ME_TOPIC_ID"
+# Feeder location: IATA code of the nearest airport, attached as a LOCATION
+# attribute on every message.
+location = "CHANGE_ME_LOCATION"                    # IATA code of nearest airport, e.g. "SJC"
 
 [reconnect]
 # Exponential backoff bounds when the feed drops.
