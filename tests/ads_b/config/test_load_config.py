@@ -27,6 +27,9 @@ max_fails = 5
 
 [health]
 health_file_path = "/tmp/health.json"
+health_log_file_path = "/tmp/health-history.log"
+health_log_max_megabytes = 5
+health_log_backup_count = 3
 write_interval_seconds = 300.0
 health_tick_seconds = 1.0
 
@@ -72,6 +75,9 @@ def test_load_config_reads_all_fields(tmp_path: Path) -> None:
     assert config.keepalive_interval_seconds == 3
     assert config.keepalive_max_fails == 5
     assert config.health_file_path == '/tmp/health.json'
+    assert config.health_log_file_path == '/tmp/health-history.log'
+    assert config.health_log_max_megabytes == 5
+    assert config.health_log_backup_count == 3
     assert config.write_interval_seconds == 300.0
     assert config.health_tick_seconds == 1.0
     assert config.log_file_path == '/tmp/adsb.log'

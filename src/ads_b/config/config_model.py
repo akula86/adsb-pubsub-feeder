@@ -27,6 +27,10 @@ class Config:
     health_file_path: str
     write_interval_seconds: float
     health_tick_seconds: float
+    # Rotating health-history log: separate file from the main log, same shape.
+    health_log_file_path: str
+    health_log_max_megabytes: int
+    health_log_backup_count: int
     # Rotating log file: fixed path, per-file size cap, and retained backups.
     log_file_path: str
     log_max_megabytes: int
