@@ -278,7 +278,7 @@ def test_writes_health_history_record_on_periodic_write(tmp_path: Path) -> None:
     def fake_read(_sock: object, _idle: float, _monotonic: object):
         yield 'ONLY'
 
-    def fake_write_history(record, _logger, _throttle) -> None:
+    def fake_write_history(record: dict, _logger: object, _throttle: object) -> None:
         records.append(record)
 
     monotonic = _advancing_monotonic(first=0.0, rest=500.0)
