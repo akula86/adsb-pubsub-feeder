@@ -269,15 +269,58 @@ below reads.
 
 ## Reporting
 
-Summarise per-day activity from the health-history log:
+TL;DR: turn the health-history log into a per-day table of lines published,
+uptime, disconnects, and failures — optionally as CSV or a PNG chart.
+
+The report groups records by UTC day. Line totals are summed from each record's
+per-interval delta, so a service restart (or the midnight counter reset) never
+drops a day's lines — a day that saw two runs still totals correctly.
+
+### On the Pi (text or CSV, no extra dependency)
+
+Print the per-day table to the terminal:
 
 ```
-uv run src/ads_b/reporting/report_health_history_cli.py --health-log /opt/adsb/health-history.log
+uv run src/ads_b/reporting/report_health_history_cli.py \
+  --health-log /opt/adsb/health-history.log
 ```
 
-Add `--csv daily.csv` to write a CSV, or `--out daily.png` to also render a
-lines-per-day chart (the chart needs matplotlib; the text and CSV output do not,
-so the Pi can run the report with no extra dependency).
+Also write a CSV you can copy off the Pi or open in a spreadsheet:
+
+```
+uv run src/ads_b/reporting/report_health_history_cli.py \
+  --health-log /opt/adsb/health-history.log --csv daily.csv
+```
+
+### On the Mac (chart)
+
+Add `--out` to render a lines-per-day bar chart as a PNG. The chart needs
+matplotlib (`uv add matplotlib`, or install into the active venv); the text and
+CSV outputs do not, which is why the Pi can run the report with nothing extra:
+
+```
+uv run src/ads_b/reporting/report_health_history_cli.py \
+  --health-log health-history.log --csv daily.csv --out daily.png
+```
+
+### What each column means
+
+| Column    | Meaning                                                                   |
+| --------- | ------------------------------------------------------------------------- |
+| `Day`     | UTC date of the records.                                                  |
+| `Lines`   | SBS lines published that day (sum of per-interval deltas).                |
+| `Uptime%` | Feeder uptime as a percent of the day, summed across runs, capped at 100. |
+| `Disc`    | Disconnects / idle-forced reconnects that day.                            |
+| `Fail`    | Publish futures that completed with an error that day.                    |
+
+### If the report is empty or short
+
+- No rows: the `--health-log` path is wrong, or the feeder has not written a
+  record yet (it appends one every `write_interval_seconds` and one on shutdown).
+- A warning about skipped lines: a crash-truncated final line was ignored; the
+  rest of the report is still valid.
+- `--out` errors with a matplotlib import error: matplotlib is not installed —
+  drop `--out` for the text/CSV report, or install matplotlib for the chart.
 
 ## Configuration
 

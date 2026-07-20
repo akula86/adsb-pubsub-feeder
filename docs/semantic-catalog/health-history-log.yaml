@@ -5,7 +5,9 @@
 # no log-level or timestamp prefix, so a reader does json.loads(line) directly.
 #
 # Design: docs/superpowers/specs/2026-07-15-health-history-logging-design.md
-# Producer: src/ads_b/health/write_health_history_record.py
+# Record built by: src/ads_b/health/build_health_history_record.py
+# Record written by: src/ads_b/health/write_health_history_record.py
+# Logger configured by: src/ads_b/lifecycle/configure_health_history_logging.py
 
 format: JSONL (one JSON object per line, UTF-8)
 cadence: One record per write_interval_seconds (default 300 s), plus one on shutdown.
@@ -34,9 +36,11 @@ fields:
       captured before the counter reset). Additive across restarts and midnight;
       the basis for per-day line totals.
     example: 45710
-  - name: status
-    type: str
-    description: healthy or stale - stale if no publish within 2x write_interval_seconds.
+  # NOTE: unlike the health.json snapshot, the history record has NO 'status'
+  # field. build_health_history_record merges FeederStats.snapshot() (which has
+  # no status); the derived healthy/stale 'status' is added only by the
+  # health.json writer, not by the history logger. Fields below are the exact
+  # 17 keys of a history record, in emission order.
   - name: started_at
     type: str (ISO 8601, UTC)
     description: Process start time. Fixed for a run; serves as the per-run identifier.
@@ -91,13 +95,20 @@ fields:
     type: str or null
     description: str() of the most recent publish failure, or null.
 
+# The exact 17 keys in emission order (no 'status'), as produced by
+# build_health_history_record merging FeederStats.snapshot().
 example_record: >-
   {"ts":"2026-07-15T05:00:00.000000+00:00","lines_this_interval":45710,
-  "status":"healthy","started_at":"2026-07-15T04:53:16.000000+00:00",
+  "started_at":"2026-07-15T04:53:16.000000+00:00",
   "last_publish_at":"2026-07-15T04:59:59.900000+00:00","uptime_seconds":404,
   "lines_total":614230,"lines_last_interval":45710,"messages_total":614230,
   "connects":1,"disconnects":0,"last_reconnect_at":null,
   "publishes_resolved":614130,"publishes_failed":0,"publishes_in_flight":100,
   "publishes_dropped":0,"last_failure_at":null,"last_failure":null}
 
-reader: src/ads_b/reporting/report_health_history.py (per-day rollups, text/CSV/PNG)
+reader: >-
+  Run the reporting CLI: uv run
+  src/ads_b/reporting/report_health_history_cli.py --health-log <path>
+  [--csv <path>] [--out <path>]. Per-day rollups printed as a text table;
+  --csv writes CSV; --out writes a PNG (matplotlib, optional). The rollup is
+  src/ads_b/reporting/rollup_health_history.py.
