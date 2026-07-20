@@ -35,6 +35,11 @@ max_fails = 5
 health_file_path = "CHANGE_ME_HEALTH_FILE_PATH"   # e.g. "/opt/adsb/health.json"
 write_interval_seconds = 300.0
 health_tick_seconds = 1.0
+# Rotating JSONL health-history log: one record per write interval, for later
+# reporting. Separate file from the main log; same size/backup shape.
+health_log_file_path = "CHANGE_ME_HEALTH_LOG_FILE_PATH"   # e.g. "/opt/adsb/health-history.log"
+health_log_max_megabytes = 5
+health_log_backup_count = 3
 
 [logging]
 # Rotating log file location and size/retention caps.

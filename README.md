@@ -118,6 +118,9 @@ max_fails = 5
 health_file_path = "/opt/adsb/health.json"
 write_interval_seconds = 300.0
 health_tick_seconds = 1.0
+health_log_file_path = "/opt/adsb/health-history.log"
+health_log_max_megabytes = 5
+health_log_backup_count = 3
 
 [logging]
 log_file_path = "/opt/adsb/adsb.log"
@@ -258,26 +261,45 @@ full day's totals are written to the log as one INFO line just before the reset,
 giving a daily record. `uptime_seconds`, `started_at`, and the `last_*`
 timestamps are process-lifetime and do not reset.
 
+Alongside the overwritten health file, the feeder also appends one JSONL record
+per write interval to a separate rotating health-history log, configured by
+`health_log_file_path`, `health_log_max_megabytes`, and `health_log_backup_count`
+(same rotation shape as `[logging]`). This history is what the reporting script
+below reads.
+
+## Reporting
+
+Summarise per-day activity from the health-history log:
+
+```
+uv run src/ads_b/reporting/report_health_history_cli.py --health-log /opt/adsb/health-history.log
+```
+
+Add `--csv daily.csv` to write a CSV, or `--out daily.png` to also render a
+lines-per-day chart (the chart needs matplotlib; the text and CSV output do not,
+so the Pi can run the report with no extra dependency).
+
 ## Configuration
 
 `app.toml` holds all non-secret config:
 
-| Section       | Key                              | Meaning                                       |
-| ------------- | -------------------------------- | --------------------------------------------- |
-| `[feed]`      | `host`, `port`                   | fr24feed BaseStation TCP endpoint             |
-| `[pubsub]`    | `project_id`, `topic_id`, `location` | Destination Pub/Sub topic; `location` is the IATA code of the nearest airport, sent as a `LOCATION` message attribute |
-| `[reconnect]` | `initial_backoff_seconds`        | First reconnect delay                         |
-| `[reconnect]` | `max_backoff_seconds`            | Reconnect delay ceiling                       |
-| `[watchdog]`  | `feed_idle_timeout_seconds`      | Force reconnect after this silent gap         |
-| `[keepalive]` | `idle_seconds`                   | Idle time before the first keepalive probe    |
-| `[keepalive]` | `interval_seconds`               | Interval between keepalive probes             |
-| `[keepalive]` | `max_fails`                      | Unanswered probes before the peer is dropped  |
-| `[health]`    | `health_file_path`               | Where to write the JSON health file           |
-| `[health]`    | `write_interval_seconds`         | How often to write the health file            |
-| `[health]`    | `health_tick_seconds`            | Loop tick / socket recv timeout               |
-| `[publish]`   | `max_pending`                    | Backlog cap; drop oldest publish when reached |
-| `[logging]`   | `error_sample_count`             | Full-detail error lines before throttling     |
-| `[logging]`   | `error_summary_interval_seconds` | How often to log a suppressed-error summary   |
+| Section       | Key                                                                           | Meaning                                                                                                                  |
+| ------------- | ----------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| `[feed]`      | `host`, `port`                                                                | fr24feed BaseStation TCP endpoint                                                                                        |
+| `[pubsub]`    | `project_id`, `topic_id`, `location`                                          | Destination Pub/Sub topic; `location` is the IATA code of the nearest airport, sent as a `LOCATION` message attribute    |
+| `[reconnect]` | `initial_backoff_seconds`                                                     | First reconnect delay                                                                                                    |
+| `[reconnect]` | `max_backoff_seconds`                                                         | Reconnect delay ceiling                                                                                                  |
+| `[watchdog]`  | `feed_idle_timeout_seconds`                                                   | Force reconnect after this silent gap                                                                                    |
+| `[keepalive]` | `idle_seconds`                                                                | Idle time before the first keepalive probe                                                                               |
+| `[keepalive]` | `interval_seconds`                                                            | Interval between keepalive probes                                                                                        |
+| `[keepalive]` | `max_fails`                                                                   | Unanswered probes before the peer is dropped                                                                             |
+| `[health]`    | `health_file_path`                                                            | Where to write the JSON health file                                                                                      |
+| `[health]`    | `write_interval_seconds`                                                      | How often to write the health file                                                                                       |
+| `[health]`    | `health_tick_seconds`                                                         | Loop tick / socket recv timeout                                                                                          |
+| `[health]`    | `health_log_file_path`, `health_log_max_megabytes`, `health_log_backup_count` | `health_log_*` configure a separate rotating JSONL log written once per write interval, consumed by the reporting script |
+| `[publish]`   | `max_pending`                                                                 | Backlog cap; drop oldest publish when reached                                                                            |
+| `[logging]`   | `error_sample_count`                                                          | Full-detail error lines before throttling                                                                                |
+| `[logging]`   | `error_summary_interval_seconds`                                              | How often to log a suppressed-error summary                                                                              |
 
 The credential path (`GOOGLE_APPLICATION_CREDENTIALS`) comes from `~/.env`, never
 from `app.toml` or the code.
