@@ -8,6 +8,9 @@ from google.cloud import pubsub_v1
 
 from ads_b.config.load_config import load_config
 from ads_b.config.config_model import Config
+from ads_b.lifecycle.configure_health_history_logging import (
+    configure_health_history_logging,
+)
 from ads_b.lifecycle.configure_logging import configure_logging
 from ads_b.lifecycle.install_shutdown_handlers import install_shutdown_handlers
 from ads_b.lifecycle.run_feeder import run_feeder
@@ -41,6 +44,13 @@ def main() -> None:
         config.log_file_path,
         config.log_max_megabytes,
         config.log_backup_count,
+    )
+
+    # Configure the separate rotating JSONL health-history log.
+    configure_health_history_logging(
+        config.health_log_file_path,
+        config.health_log_max_megabytes,
+        config.health_log_backup_count,
     )
 
     # Quiet gRPC's native (C-core) stderr, which floods on FD exhaustion. The
