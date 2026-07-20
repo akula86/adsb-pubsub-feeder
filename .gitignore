@@ -17,3 +17,7 @@ wheels/
 pi.app.toml
 mac.app.toml
 
+# Local design docs and scratch (specs, plans, subagent execution artifacts).
+docs/superpowers/
+.superpowers/
+
