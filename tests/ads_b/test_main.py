@@ -40,6 +40,7 @@ def test_publisher_built_from_config_credentials_path(monkeypatch) -> None:
     monkeypatch.setattr('sys.argv', ['ads-b'])
     monkeypatch.setattr('ads_b.main.load_config', lambda _toml, _env: _config('/keys/sa.json'))
     monkeypatch.setattr('ads_b.main.configure_logging', lambda *a, **k: None)
+    monkeypatch.setattr('ads_b.main.log_startup_banner', lambda _config: None)
     monkeypatch.setattr('ads_b.main.install_shutdown_handlers', lambda _flag: None)
     monkeypatch.setattr('ads_b.main.run_feeder', lambda *a, **k: None)
 

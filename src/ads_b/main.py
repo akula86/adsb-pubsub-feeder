@@ -13,6 +13,7 @@ from ads_b.lifecycle.configure_health_history_logging import (
 )
 from ads_b.lifecycle.configure_logging import configure_logging
 from ads_b.lifecycle.install_shutdown_handlers import install_shutdown_handlers
+from ads_b.lifecycle.log_startup_banner import log_startup_banner
 from ads_b.lifecycle.run_feeder import run_feeder
 from ads_b.lifecycle.shutdown_flag import ShutdownFlag
 
@@ -45,6 +46,9 @@ def main() -> None:
         config.log_max_megabytes,
         config.log_backup_count,
     )
+
+    # Log the operationally significant config now that handlers are attached.
+    log_startup_banner(config)
 
     # Configure the separate rotating JSONL health-history log.
     configure_health_history_logging(
